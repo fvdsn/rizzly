@@ -229,5 +229,51 @@ describe("Result Types", () => {
             let res = doSomething("fails").asError("NEW_ERROR");
             expect(() => res.unwrap()).toThrow("NEW_ERROR");
         });
+
+        it("match on success", () => {
+            let res = doSomething("succeeds");
+            const result = res.match({
+                ok: (value) => `Success: ${value}`,
+                err: (error, cause) => `Error: ${error}`
+            });
+            expect(result).toBe("Success: 42");
+        });
+
+        it("match on failure", () => {
+            let res = doSomething("fails");
+            const result = res.match({
+                ok: (value) => `Success: ${value}`,
+                err: (error, cause) => `Error: ${error}`
+            });
+            expect(result).toBe("Error: ERROR");
+        });
+
+        it("match on failure with cause", () => {
+            const cause = new Error("Original error");
+            let res = error("NETWORK_ERROR", cause);
+            const result = res.match({
+                ok: (value) => `Success: ${value}`,
+                err: (error, cause) => `Error: ${error}, Cause: ${cause?.message}`
+            });
+            expect(result).toBe("Error: NETWORK_ERROR, Cause: Original error");
+        });
+
+        it("match returns correct types", () => {
+            let successRes = doSomething("succeeds");
+            let failureRes = doSomething("fails");
+
+            // Should return number when both handlers return numbers
+            const numResult1 = successRes.match({
+                ok: (value) => value * 2,
+                err: (error) => 0
+            });
+            expect(numResult1).toBe(84);
+
+            const numResult2 = failureRes.match({
+                ok: (value) => value * 2,
+                err: (error) => 0
+            });
+            expect(numResult2).toBe(0);
+        });
     });
 });

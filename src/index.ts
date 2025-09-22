@@ -23,6 +23,9 @@ export class Ok<T> {
     asError<F extends string>(err: F): Ok<T> {
         return this;
     }
+    match<U>(handlers: { ok: (value: T) => U; err: (error: never, cause?: Error) => U }): U {
+        return handlers.ok(this.value);
+    }
 }
 
 export class Err<E extends string> {
@@ -55,6 +58,9 @@ export class Err<E extends string> {
     }
     asError<F extends string>(err: F): Err<F> {
         return new Err(err, this.cause);
+    }
+    match<U>(handlers: { ok: (value: never) => U; err: (error: E, cause?: Error) => U }): U {
+        return handlers.err(this.error, this.cause);
     }
 }
 
@@ -111,35 +117,5 @@ export async function awrap<T, E extends string>(
         } else {
             return error(errorStr);
         }
-    }
-}
-
-export namespace Result {
-    export function map<T, U, E extends string>(
-        result: Result<T, E>,
-        fn: (value: T) => U,
-    ): Result<U, E> {
-        return result.ok ? ok(fn(result.value)) : result;
-    }
-
-    export function flatMap<T, U, E extends string>(
-        result: Result<T, E>,
-        fn: (value: T) => Result<U, E>,
-    ): Result<U, E> {
-        return result.ok ? fn(result.value) : result;
-    }
-
-    export function mapError<T, E extends string, F extends string>(
-        result: Result<T, E>,
-        fn: (error: E, cause?: Error) => F,
-    ): Result<T, F> {
-        return result.ok ? result : error(fn(result.error, result.cause), result.cause);
-    }
-
-    export function match<T, E extends string, U>(
-        result: Result<T, E>,
-        handlers: { ok: (value: T) => U; err: (error: E, cause?: Error) => U },
-    ): U {
-        return result.ok ? handlers.ok(result.value) : handlers.err(result.error, result.cause);
     }
 }
