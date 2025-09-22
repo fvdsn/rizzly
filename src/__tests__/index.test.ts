@@ -1,24 +1,21 @@
-import { ok, success, failure, unwrap, wrap, awrap, Result, OkOrFailure } from "../index";
+import { ok, error, unwrap, wrap, awrap, Result, VoidResult } from "../index";
 
 describe("Result Types", () => {
     describe("ok()", () => {
-        it("should return a success with undefined value", () => {
+        it("should accept no parameters", () => {
             const result = ok();
             expect(result.ok).toBe(true);
             expect(result.value).toBeUndefined();
         });
-    });
-
-    describe("success()", () => {
-        it("should return a success with the provided value", () => {
-            const result = success(42);
+        it("should return a ok with the provided value", () => {
+            const result = ok(42);
             expect(result.ok).toBe(true);
             expect(result.value).toBe(42);
         });
 
         it("should work with different types", () => {
-            const stringResult = success("hello");
-            const objectResult = success({ name: "test" });
+            const stringResult = ok("hello");
+            const objectResult = ok({ name: "test" });
 
             expect(stringResult.ok).toBe(true);
             expect(stringResult.value).toBe("hello");
@@ -29,32 +26,30 @@ describe("Result Types", () => {
 
     describe("failure()", () => {
         it("should return a failure with the provided error type", () => {
-            const result = failure("NETWORK_ERROR");
+            const result = error("NETWORK_ERROR");
             expect(result.ok).toBe(false);
-            expect(result.failure).toBe("NETWORK_ERROR");
-            expect(result.message).toBeUndefined();
-            expect(result.error).toBeUndefined();
+            expect(result.error).toBe("NETWORK_ERROR");
+            expect(result.cause).toBeUndefined();
         });
 
         it("should include message and error when provided", () => {
-            const error = new Error("Connection failed");
-            const result = failure("NETWORK_ERROR", "Failed to connect", error);
+            const err = new Error("Connection failed");
+            const result = error("NETWORK_ERROR", err);
 
             expect(result.ok).toBe(false);
-            expect(result.failure).toBe("NETWORK_ERROR");
-            expect(result.message).toBe("Failed to connect");
-            expect(result.error).toBe(error);
+            expect(result.error).toBe("NETWORK_ERROR");
+            expect(result.cause).toBe(err);
         });
     });
 
     describe("unwrap()", () => {
         it("should return the value when result is successful", () => {
-            const result = success(42);
+            const result = ok(42);
             expect(unwrap(result)).toBe(42);
         });
 
         it("should throw an error when result is a failure", () => {
-            const result = failure("ERROR", "Something went wrong");
+            const result = error("ERROR");
             expect(() => unwrap(result)).toThrow("ERROR");
         });
     });
@@ -72,9 +67,8 @@ describe("Result Types", () => {
             const result = wrap("PARSE_ERROR", () => JSON.parse("invalid json"));
             expect(result.ok).toBe(false);
             if (!result.ok) {
-                expect(result.failure).toBe("PARSE_ERROR");
-                expect(result.error).toBeInstanceOf(SyntaxError);
-                expect(result.message).toContain("SyntaxError");
+                expect(result.error).toBe("PARSE_ERROR");
+                expect(result.cause).toBeInstanceOf(SyntaxError);
             }
         });
 
@@ -84,9 +78,8 @@ describe("Result Types", () => {
             });
             expect(result.ok).toBe(false);
             if (!result.ok) {
-                expect(result.failure).toBe("CUSTOM_ERROR");
-                expect(result.message).toBe("string error");
-                expect(result.error).toBeUndefined();
+                expect(result.error).toBe("CUSTOM_ERROR");
+                expect(result.cause).toBeUndefined();
             }
         });
     });
@@ -105,9 +98,8 @@ describe("Result Types", () => {
             const result = await awrap("ASYNC_ERROR", Promise.reject(error));
             expect(result.ok).toBe(false);
             if (!result.ok) {
-                expect(result.failure).toBe("ASYNC_ERROR");
-                expect(result.error).toBe(error);
-                expect(result.message).toContain("Error: Async failed");
+                expect(result.error).toBe("ASYNC_ERROR");
+                expect(result.cause).toBe(error);
             }
         });
 
@@ -115,9 +107,8 @@ describe("Result Types", () => {
             const result = await awrap("ASYNC_ERROR", Promise.reject("string error"));
             expect(result.ok).toBe(false);
             if (!result.ok) {
-                expect(result.failure).toBe("ASYNC_ERROR");
-                expect(result.message).toBe("string error");
-                expect(result.error).toBeUndefined();
+                expect(result.error).toBe("ASYNC_ERROR");
+                expect(result.cause).toBeUndefined();
             }
         });
     });
@@ -125,8 +116,8 @@ describe("Result Types", () => {
     describe("Type checking", () => {
         it("should work with proper TypeScript types", () => {
             type MyError = "NETWORK_ERROR" | "PARSE_ERROR";
-            const successResult: Result<number, MyError> = success(42);
-            const failureResult: Result<number, MyError> = failure("NETWORK_ERROR");
+            const successResult: Result<number, MyError> = ok(42);
+            const failureResult: Result<number, MyError> = error("NETWORK_ERROR");
 
             if (successResult.ok) {
                 let value: number = successResult.value;
@@ -134,17 +125,17 @@ describe("Result Types", () => {
             }
 
             if (!failureResult.ok) {
-                let failure: MyError = failureResult.failure;
-                expect(["NETWORK_ERROR", "PARSE_ERRROR"]).toContain(failureResult.failure);
+                let failure: MyError = failureResult.error;
+                expect(["NETWORK_ERROR", "PARSE_ERRROR"]).toContain(failureResult.error);
             }
         });
 
         it("Result type should be returnable from a function", () => {
             function doSomething(): Result<number, "NETWORK_ERROR" | "PARSE_ERROR"> {
                 if (42 < 55) {
-                    return success(42);
+                    return ok(42);
                 } else {
-                    return failure("NETWORK_ERROR");
+                    return error("NETWORK_ERROR");
                 }
             }
 
@@ -152,11 +143,11 @@ describe("Result Types", () => {
         });
 
         it("OkOrFailure type should be returnable from a function", () => {
-            function checkSomething(): OkOrFailure<"NETWORK_ERROR" | "PARSE_ERROR"> {
+            function checkSomething(): VoidResult<"NETWORK_ERROR" | "PARSE_ERROR"> {
                 if (42 < 55) {
                     return ok();
                 } else {
-                    return failure("NETWORK_ERROR");
+                    return error("NETWORK_ERROR");
                 }
             }
             expect(unwrap(checkSomething())).toBeUndefined();
@@ -165,16 +156,19 @@ describe("Result Types", () => {
         it("Types should be correctly inferred", () => {
             function doSomething() {
                 if (42 < 55) {
-                    return success(99);
+                    return ok(99);
                 } else if (43 < 55) {
-                    return failure("NETWORK_ERROR");
+                    return error("NETWORK_ERROR");
                 } else {
-                    return failure("PARSE_ERROR");
+                    return error("PARSE_ERROR");
                 }
             }
 
             let res: Result<number, "NETWORK_ERROR" | "PARSE_ERROR"> = doSomething();
             expect(unwrap(res)).toBe(99);
         });
+    });
+    describe("Type checking", () => {
+        it("should work with proper TypeScript types", () => {});
     });
 });
