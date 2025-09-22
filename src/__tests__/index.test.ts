@@ -1,5 +1,15 @@
 import { ok, error, unwrap, wrap, awrap, Result, VoidResult } from "../index";
 
+function doSomething(succeeds: "succeeds" | "fails") {
+    if (succeeds === "succeeds") {
+        return ok(42);
+    } else if (1 < 2) {
+        return error("ERROR");
+    } else {
+        return error("ANOTHER_ERROR");
+    }
+}
+
 describe("Result Types", () => {
     describe("ok()", () => {
         it("should accept no parameters", () => {
@@ -131,7 +141,7 @@ describe("Result Types", () => {
         });
 
         it("Result type should be returnable from a function", () => {
-            function doSomething(): Result<number, "NETWORK_ERROR" | "PARSE_ERROR"> {
+            function doSomethingElse(): Result<number, "NETWORK_ERROR" | "PARSE_ERROR"> {
                 if (42 < 55) {
                     return ok(42);
                 } else {
@@ -139,7 +149,7 @@ describe("Result Types", () => {
                 }
             }
 
-            expect(unwrap(doSomething())).toBe(42);
+            expect(unwrap(doSomethingElse())).toBe(42);
         });
 
         it("OkOrFailure type should be returnable from a function", () => {
@@ -154,7 +164,7 @@ describe("Result Types", () => {
         });
 
         it("Types should be correctly inferred", () => {
-            function doSomething() {
+            function doSomethingElse() {
                 if (42 < 55) {
                     return ok(99);
                 } else if (43 < 55) {
@@ -164,11 +174,60 @@ describe("Result Types", () => {
                 }
             }
 
-            let res: Result<number, "NETWORK_ERROR" | "PARSE_ERROR"> = doSomething();
+            let res: Result<number, "NETWORK_ERROR" | "PARSE_ERROR"> = doSomethingElse();
             expect(unwrap(res)).toBe(99);
         });
     });
-    describe("Type checking", () => {
-        it("should work with proper TypeScript types", () => {});
+
+    describe("Results methods", () => {
+        it("unwraps successes", () => {
+            let res = doSomething("succeeds");
+            expect(res.unwrap()).toBe(42);
+        });
+
+        it("unwraps failures", () => {
+            let res = doSomething("fails");
+            expect(() => res.unwrap()).toThrow("ERROR");
+        });
+
+        it("unwrapOrs successes", () => {
+            let res = doSomething("succeeds");
+            expect(res.unwrapOr(99)).toBe(42);
+        });
+
+        it("unwrapOrs failures", () => {
+            let res = doSomething("fails");
+            expect(res.unwrapOr(99)).toBe(99);
+        });
+
+        it("maps successes", () => {
+            let res = doSomething("succeeds");
+            expect(res.map((val) => val + 1).unwrap()).toBe(43);
+        });
+
+        it("maps failures", () => {
+            let res = doSomething("fails");
+            expect(() => res.map((val) => val + 1).unwrap()).toThrow("ERROR");
+        });
+
+        it("maps errors, when no errors", () => {
+            let res = doSomething("succeeds");
+            expect(res.mapError((err) => err.toLowerCase()).unwrap()).toBe(42);
+        });
+
+        it("maps errors, when errors", () => {
+            let res = doSomething("fails");
+            expect(() => res.mapError((err) => err.toLowerCase()).unwrap()).toThrow("error");
+        });
+
+        it("asError, when no errors", () => {
+            let res = doSomething("succeeds").asError("NEW_ERROR");
+            expect(res.unwrap()).toBe(42);
+        });
+
+        it("asError, when errors", () => {
+            let res = doSomething("fails").asError("NEW_ERROR");
+            expect(() => res.unwrap()).toThrow("NEW_ERROR");
+        });
     });
 });

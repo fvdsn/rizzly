@@ -1,5 +1,64 @@
-export type Ok<T> = { ok: true; value: T };
-export type Err<E extends string> = { ok: false; error: E; cause?: Error };
+export class Ok<T> {
+    readonly ok: true;
+    readonly value: T;
+    constructor(value: T) {
+        this.ok = true;
+        this.value = value;
+    }
+    unwrap(): T {
+        return this.value;
+    }
+    unwrapOr<U>(value: U): T | U {
+        return this.value;
+    }
+    map<U>(fn: (value: T) => U): Ok<U> {
+        return ok(fn(this.value));
+    }
+    mapOr<U>(value: never, fn: (value: T) => U): Ok<U> {
+        return ok(fn(this.value));
+    }
+    mapError<F extends string>(fn: (error: never) => F): Ok<T> {
+        return this;
+    }
+    asError<F extends string>(err: F): Ok<T> {
+        return this;
+    }
+}
+
+export class Err<E extends string> {
+    readonly ok: false;
+    readonly error: E;
+    readonly cause?: Error;
+    constructor(error: E, cause?: Error) {
+        this.ok = false;
+        this.error = error;
+        this.cause = cause;
+    }
+    unwrap(): never {
+        if (this.cause) {
+            throw new Error(this.error, { cause: this.cause });
+        } else {
+            throw new Error(this.error);
+        }
+    }
+    unwrapOr<U>(value: U): U {
+        return value;
+    }
+    map<U>(fn: (value: never) => U): Err<E> {
+        return this;
+    }
+    mapOr<U>(value: U, fn: (value: never) => U): Ok<U> {
+        return ok(value);
+    }
+    mapError<F extends string>(fn: (error: E) => F): Err<F> {
+        return new Err(fn(this.error), this.cause);
+    }
+    asError<F extends string>(err: F): Err<F> {
+        return new Err(err, this.cause);
+    }
+}
+
+export type Okk<T> = { ok: true; value: T };
 export type Result<T, E extends string> = Ok<T> | Err<E>;
 export type VoidResult<E extends string> = Ok<undefined> | Err<E>;
 
@@ -7,12 +66,12 @@ export function ok(): Ok<undefined>;
 export function ok<T>(value: T): Ok<T>;
 export function ok<T>(value?: T): Ok<T> {
     /* Shorthand helper function to return the succesfull value */
-    return { ok: true, value: value as T };
+    return new Ok(value as T);
 }
 
 export function error<E extends string>(error: E, cause?: Error): Err<E> {
     /* Shorthand helper function to return the error */
-    return { ok: false, error, cause };
+    return new Err(error, cause);
 }
 
 export function unwrap<T>(res: Result<T, string>): T {
