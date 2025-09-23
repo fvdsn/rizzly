@@ -28,43 +28,7 @@ export class Ok<T> {
     }
 }
 
-export class Err<E extends string> {
-    readonly ok: false;
-    readonly error: E;
-    readonly cause?: Error;
-    constructor(error: E, cause?: Error) {
-        this.ok = false;
-        this.error = error;
-        this.cause = cause;
-    }
-    unwrap(): never {
-        if (this.cause) {
-            throw new Error(this.error, { cause: this.cause });
-        } else {
-            throw new Error(this.error);
-        }
-    }
-    unwrapOr<U>(value: U): U {
-        return value;
-    }
-    map<U>(fn: (value: never) => U): Err<E> {
-        return this;
-    }
-    mapOr<U>(value: U, fn: (value: never) => U): Ok<U> {
-        return ok(value);
-    }
-    mapError<F extends string>(fn: (error: E) => F): Err<F> {
-        return new Err(fn(this.error), this.cause);
-    }
-    asError<F extends string>(err: F): Err<F> {
-        return new Err(err, this.cause);
-    }
-    match<U>(handlers: { ok: (value: never) => U; err: (error: E, cause?: Error) => U }): U {
-        return handlers.err(this.error, this.cause);
-    }
-}
-
-export class ErrWithCause<E extends string, C> {
+export class Err<E extends string, C> {
     readonly ok: false;
     readonly error: E;
     readonly cause: C;
@@ -83,26 +47,25 @@ export class ErrWithCause<E extends string, C> {
     unwrapOr<U>(value: U): U {
         return value;
     }
-    map<U>(fn: (value: never) => U): ErrWithCause<E, C> {
+    map<U>(fn: (value: never) => U): Err<E, C> {
         return this;
     }
     mapOr<U>(value: U, fn: (value: never) => U): Ok<U> {
         return ok(value);
     }
-    mapError<F extends string>(fn: (error: E) => F): ErrWithCause<F, C> {
-        return new ErrWithCause(fn(this.error), this.cause);
+    mapError<F extends string>(fn: (error: E) => F): Err<F, C> {
+        return new Err(fn(this.error), this.cause);
     }
-    asError<F extends string>(err: F): ErrWithCause<F, C> {
-        return new ErrWithCause(err, this.cause);
+    asError<F extends string>(err: F): Err<F, C> {
+        return new Err(err, this.cause);
     }
     match<U>(handlers: { ok: (value: never) => U; err: (error: E, cause?: C) => U }): U {
         return handlers.err(this.error, this.cause);
     }
 }
 
-export type Result<T, E extends string> = Ok<T> | Err<E>;
-export type CauseResult<T, E extends string, C> = Ok<T> | ErrWithCause<E, C>;
-export type VoidResult<E extends string> = Ok<undefined> | Err<E>;
+export type Result<T, E extends string> = Ok<T> | Err<E, undefined>;
+export type ResultWithCause<T, E extends string, C> = Ok<T> | Err<E, C>;
 
 export function ok(): Ok<undefined>;
 export function ok<T>(value: T): Ok<T>;
@@ -111,32 +74,21 @@ export function ok<T>(value?: T): Ok<T> {
     return new Ok(value as T);
 }
 
-export function error<E extends string>(error: E, cause?: Error): Err<E>;
-export function error<E extends string, C>(error: E, cause: C): ErrWithCause<E, C>;
-export function error<E extends string, C>(error: E, cause?: C): Err<E> | ErrWithCause<E, C> {
+export function error<E extends string>(error: E): Err<E, undefined>;
+export function error<E extends string, C>(error: E, cause: C): Err<E, C>;
+export function error<E extends string, C>(error: E, cause?: C): Err<E, undefined> | Err<E, C> {
     /* Shorthand helper function to return the error */
     if (typeof cause === "undefined") {
-        return new Err(error);
-    } else if (cause instanceof Error) {
-        return new Err(error, cause);
+        return new Err(error, undefined);
     } else {
-        return new ErrWithCause(error, cause);
+        return new Err(error, cause);
     }
 }
 
-/*
-export function unwrap<T>(res: Result<T, string>): T {
-    /* gets the value out of a resut and throw and exception on error /
-    if (res.ok) {
-        return res.value;
-    } else if (res.cause) {
-        throw res.cause;
-    } else {
-        throw Error(res.error);
-    }
-}*/
-
-export function wrap<T, E extends string>(errorStr: E, body: () => T): Result<T, E> {
+export function wrap<T, E extends string>(
+    errorStr: E,
+    body: () => T,
+): Result<T, E> | ResultWithCause<T, E, Error> {
     /* wraps a callback that can throw an exception into a result type */
     try {
         return ok(body());
@@ -152,7 +104,7 @@ export function wrap<T, E extends string>(errorStr: E, body: () => T): Result<T,
 export async function awrap<T, E extends string>(
     errorStr: E,
     value: Promise<T>,
-): Promise<Result<T, E>> {
+): Promise<Result<T, E> | ResultWithCause<T, E, Error>> {
     /* wraps a promise into a promise of a result type */
     try {
         return ok(await value);

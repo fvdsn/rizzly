@@ -1,4 +1,4 @@
-import { ok, error, wrap, awrap, Result, VoidResult } from "../index";
+import { ok, error, wrap, awrap, Result } from "../index";
 
 function doSomething(succeeds: "succeeds" | "fails") {
     if (succeeds === "succeeds") {
@@ -51,20 +51,6 @@ describe("Result Types", () => {
             expect(result.cause).toBe(err);
         });
     });
-
-    /*
-    describe("unwrap()", () => {
-        it("should return the value when result is successful", () => {
-            const result = ok(42);
-            expect(unwrap(result)).toBe(42);
-        });
-
-        it("should throw an error when result is a failure", () => {
-            const result = error("ERROR");
-            expect(() => unwrap(result)).toThrow("ERROR");
-        });
-    });
-    */
 
     describe("wrap()", () => {
         it("should return success when callback does not throw", () => {
@@ -154,8 +140,8 @@ describe("Result Types", () => {
             expect(doSomethingElse().unwrap()).toBe(42);
         });
 
-        it("OkOrFailure type should be returnable from a function", () => {
-            function checkSomething(): VoidResult<"NETWORK_ERROR" | "PARSE_ERROR"> {
+        it("VoidResult type should be returnable from a function", () => {
+            function checkSomething(): Result<undefined, "NETWORK_ERROR" | "PARSE_ERROR"> {
                 if (42 < 55) {
                     return ok();
                 } else {
