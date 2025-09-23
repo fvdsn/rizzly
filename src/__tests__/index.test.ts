@@ -1,4 +1,4 @@
-import { ok, error, unwrap, wrap, awrap, Result, VoidResult } from "../index";
+import { ok, error, wrap, awrap, Result, VoidResult } from "../index";
 
 function doSomething(succeeds: "succeeds" | "fails") {
     if (succeeds === "succeeds") {
@@ -52,6 +52,7 @@ describe("Result Types", () => {
         });
     });
 
+    /*
     describe("unwrap()", () => {
         it("should return the value when result is successful", () => {
             const result = ok(42);
@@ -63,6 +64,7 @@ describe("Result Types", () => {
             expect(() => unwrap(result)).toThrow("ERROR");
         });
     });
+    */
 
     describe("wrap()", () => {
         it("should return success when callback does not throw", () => {
@@ -149,7 +151,7 @@ describe("Result Types", () => {
                 }
             }
 
-            expect(unwrap(doSomethingElse())).toBe(42);
+            expect(doSomethingElse().unwrap()).toBe(42);
         });
 
         it("OkOrFailure type should be returnable from a function", () => {
@@ -160,7 +162,7 @@ describe("Result Types", () => {
                     return error("NETWORK_ERROR");
                 }
             }
-            expect(unwrap(checkSomething())).toBeUndefined();
+            expect(checkSomething().unwrap()).toBeUndefined();
         });
 
         it("Types should be correctly inferred", () => {
@@ -175,7 +177,58 @@ describe("Result Types", () => {
             }
 
             let res: Result<number, "NETWORK_ERROR" | "PARSE_ERROR"> = doSomethingElse();
-            expect(unwrap(res)).toBe(99);
+            expect(res.unwrap()).toBe(99);
+        });
+    });
+
+    describe("Error with cause", () => {
+        it("can be created from error()", () => {
+            let res = error("VALIDATION_ERROR", { foo: "bar" });
+            expect(res.ok).toBe(false);
+            expect(res.cause.foo).toBe("bar");
+        });
+
+        it("can be inferred from a function", () => {
+            function doSomethingElse() {
+                if (42 > 99) {
+                    return ok(42);
+                } else {
+                    return error("SOME_ERROR", { foo: "bar" });
+                }
+            }
+
+            let res = doSomethingElse();
+
+            if (res.ok) {
+                expect(res.value).toBe(42);
+            } else {
+                expect(res.error).toBe("SOME_ERROR");
+                expect(res.cause.foo).toBe("bar");
+            }
+        });
+
+        it("can be inferred from a function mixed with regular errors", () => {
+            function doSomethingElse() {
+                if (42 > 99) {
+                    return ok(42);
+                } else if (43 > 99) {
+                    return error("SOME_ERROR");
+                } else {
+                    return error("OTHER_ERROR", { foo: "bar" });
+                }
+            }
+
+            let res = doSomethingElse();
+
+            if (res.ok) {
+                expect(res.value).toBe(42);
+            } else if (res.error === "SOME_ERROR") {
+                expect(res.error).toBe("SOME_ERROR");
+                expect(res.cause).toBeUndefined();
+            } else {
+                expect(res.error).toBe("OTHER_ERROR");
+                expect(res.cause.foo).toBe("bar");
+            }
         });
     });
 
@@ -234,7 +287,7 @@ describe("Result Types", () => {
             let res = doSomething("succeeds");
             const result = res.match({
                 ok: (value) => `Success: ${value}`,
-                err: (error, cause) => `Error: ${error}`
+                err: (error, cause) => `Error: ${error}`,
             });
             expect(result).toBe("Success: 42");
         });
@@ -243,7 +296,7 @@ describe("Result Types", () => {
             let res = doSomething("fails");
             const result = res.match({
                 ok: (value) => `Success: ${value}`,
-                err: (error, cause) => `Error: ${error}`
+                err: (error, cause) => `Error: ${error}`,
             });
             expect(result).toBe("Error: ERROR");
         });
@@ -253,7 +306,7 @@ describe("Result Types", () => {
             let res = error("NETWORK_ERROR", cause);
             const result = res.match({
                 ok: (value) => `Success: ${value}`,
-                err: (error, cause) => `Error: ${error}, Cause: ${cause?.message}`
+                err: (error, cause) => `Error: ${error}, Cause: ${cause?.message}`,
             });
             expect(result).toBe("Error: NETWORK_ERROR, Cause: Original error");
         });
@@ -265,13 +318,13 @@ describe("Result Types", () => {
             // Should return number when both handlers return numbers
             const numResult1 = successRes.match({
                 ok: (value) => value * 2,
-                err: (error) => 0
+                err: (error) => 0,
             });
             expect(numResult1).toBe(84);
 
             const numResult2 = failureRes.match({
                 ok: (value) => value * 2,
-                err: (error) => 0
+                err: (error) => 0,
             });
             expect(numResult2).toBe(0);
         });
