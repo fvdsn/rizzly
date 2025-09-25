@@ -259,13 +259,13 @@ describe("Result Types", () => {
             expect(() => res.mapError((err) => err.toLowerCase()).unwrap()).toThrow("error");
         });
 
-        it("asError, when no errors", () => {
-            let res = doSomething("succeeds").asError("NEW_ERROR");
+        it("withError, when no errors", () => {
+            let res = doSomething("succeeds").withError("NEW_ERROR");
             expect(res.unwrap()).toBe(42);
         });
 
-        it("asError, when errors", () => {
-            let res = doSomething("fails").asError("NEW_ERROR");
+        it("withError, when errors", () => {
+            let res = doSomething("fails").withError("NEW_ERROR");
             expect(() => res.unwrap()).toThrow("NEW_ERROR");
         });
 

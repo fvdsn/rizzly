@@ -127,3 +127,13 @@ let res = doManyThings().withErrorAndCause('something failed', { code: `ERR48321
 ```
 
 `res.withErrorAndCause()` does the same thing as `res.withError()` but also sets the `cause`.
+
+#### res.match( _{ ok: fn, err: fn }_ )
+
+```ts
+let userName = getUser().match({
+    ok: (user) => user.userName,
+    err: (error, cause) => "guest",
+})
+```
+`res.match()` takes an `ok` and an `err` callback that return the value of the `match` call.
