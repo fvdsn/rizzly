@@ -73,7 +73,7 @@ let res = await awrap(fetch("https://perdu.com"))
 
 `awrap()` lets you create results from functions that return promises. If the promise fails, the result is failed as well and the error is put as the cause. Note that `awrap()` returns a promise of the result.
 
-## Methods of Result
+## Methods of _Result_
 
 ### res.unwrap()
 
@@ -88,4 +88,42 @@ let val = doSomething().unwrap()
 ```ts
 let json = wrap(() => JSON.parse(value)).unwrapOr({ data: {} })
 ```
-`res.unwrapOr()` lets you directly get the value of a result, or a default if the result is failed.
+`res.unwrapOr()` lets you directly get the `value` of a result, or a default if the result is failed.
+
+### res.map( _fn_ )
+
+```ts
+let res = getUsername().map((name) => name.toLowerCase())
+```
+
+`res.map()` lets you change the `value` of the result without needing to unwrap the value.
+
+### res.mapError( _fn_ )
+
+```ts
+let res = getData().mapError((error) => i18n.translate(error))
+```
+`res.mapError()` lets you change the value of the `error` in case of failure. The `cause` is left untouched.
+
+### res.mapCause( _fn_ )
+
+```ts
+let res = getData().mapCause((cause) => { errors: [cause] })
+```
+`res.mapCause()` lets you alter the `cause` of the failure. The `error` name is left untouched.
+
+### res.withError( _string_ )
+
+```ts
+let res = doManyThings().withError('something failed')
+```
+`res.withError()` lets you set the error type of the result in case of failure. The `cause` is left untouched. This is useful when a
+result has many possible `errors` which you do not care about in a specific context.
+
+### res.withErrorAndCause( _string_, _any_ )
+
+```ts
+let res = doManyThings().withErrorAndCause('something failed', { code: `ERR48321` })
+```
+
+`res.withErrorAndCause()` does the same thing as `res.withError()` but also sets the `cause`.
