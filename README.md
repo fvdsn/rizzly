@@ -52,7 +52,7 @@ if (res.ok) {
 
 ## Documentation
 
-### wrap(_string_, _fn_ )
+### wrap( _string_, _fn_ )
 
 ```ts
 import { wrap } from "rizzly"
@@ -63,7 +63,7 @@ let res = wrap('parse-error', () => JSON.parse(value))
 `wrap()` lets you create results from functions that can throw errors. If the function throws an `Error`, the exception is put as the `.cause`
 of the result. Otherwise, the returned value is put as the result value.
 
-### awrap(_string_, _promise_ )
+### awrap( _string_, _promise_ )
 
 ```ts
 import { awrap } from "rizzly"
