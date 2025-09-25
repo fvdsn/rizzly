@@ -14,7 +14,7 @@ export class Ok<T> {
     map<U>(fn: (value: T) => U): Ok<U> {
         return ok(fn(this.value));
     }
-    mapOr<U>(value: never, fn: (value: T) => U): Ok<U> {
+    mapOr<U>(value: U, fn: (value: T) => U): Ok<U> {
         return ok(fn(this.value));
     }
     mapError<F extends string>(fn: (error: never) => F): Ok<T> {

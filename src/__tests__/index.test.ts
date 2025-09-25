@@ -314,5 +314,71 @@ describe("Result Types", () => {
             });
             expect(numResult2).toBe(0);
         });
+
+        it("mapOr on success returns mapped value", () => {
+            let res = doSomething("succeeds");
+            expect(res.mapOr("default", (val) => `value: ${val}`).unwrap()).toBe("value: 42");
+        });
+
+        it("mapOr on failure returns default value", () => {
+            let res = doSomething("fails");
+            expect(res.mapOr("default", (val) => `value: ${val}`).unwrap()).toBe("default");
+        });
+
+        it("mapCause on success returns unchanged", () => {
+            let res = doSomething("succeeds");
+            expect(res.mapCause((cause) => `modified: ${cause}`).unwrap()).toBe(42);
+        });
+
+        it("mapCause on failure with cause transforms the cause", () => {
+            const originalCause = new Error("original");
+            let res = error("TEST_ERROR", originalCause);
+            let mappedRes = res.mapCause((cause) => `modified: ${cause?.message}`);
+
+            expect(mappedRes.ok).toBe(false);
+            if (!mappedRes.ok) {
+                expect(mappedRes.error).toBe("TEST_ERROR");
+                expect(mappedRes.cause).toBe("modified: original");
+            }
+        });
+
+        it("mapCause on failure without cause transforms undefined", () => {
+            let res = error("TEST_ERROR");
+            let mappedRes = res.mapCause((cause) => "new cause");
+
+            expect(mappedRes.ok).toBe(false);
+            if (!mappedRes.ok) {
+                expect(mappedRes.error).toBe("TEST_ERROR");
+                expect(mappedRes.cause).toBe("new cause");
+            }
+        });
+
+        it("withErrorAndCause on success returns unchanged", () => {
+            let res = doSomething("succeeds");
+            expect(res.withErrorAndCause("NEW_ERROR", "new cause").unwrap()).toBe(42);
+        });
+
+        it("withErrorAndCause on failure changes both error and cause", () => {
+            const originalCause = new Error("original");
+            let res = error("ORIGINAL_ERROR", originalCause);
+            let newRes = res.withErrorAndCause("NEW_ERROR", "new cause");
+
+            expect(newRes.ok).toBe(false);
+            if (!newRes.ok) {
+                expect(newRes.error).toBe("NEW_ERROR");
+                expect(newRes.cause).toBe("new cause");
+            }
+        });
+
+        it("withErrorAndCause on failure without original cause", () => {
+            let res = error("ORIGINAL_ERROR");
+            let newRes = res.withErrorAndCause("NEW_ERROR", { custom: "cause" });
+
+            expect(newRes.ok).toBe(false);
+            if (!newRes.ok) {
+                expect(newRes.error).toBe("NEW_ERROR");
+                expect(newRes.cause).toEqual({ custom: "cause" });
+            }
+        });
     });
 });
