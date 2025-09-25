@@ -52,23 +52,23 @@ if (res.ok) {
 
 ## Documentation
 
-### wrap( _fn_ )
+### wrap(_string_, _fn_ )
 
 ```ts
 import { wrap } from "rizzly"
 
-let res = wrap(() => JSON.parse(value))
+let res = wrap('parse-error', () => JSON.parse(value))
 ```
 
 `wrap()` lets you create results from functions that can throw errors. If the function throws an `Error`, the exception is put as the `.cause`
 of the result. Otherwise, the returned value is put as the result value.
 
-### awrap( _promise_ )
+### awrap(_string_, _promise_ )
 
 ```ts
 import { awrap } from "rizzly"
 
-let res = await awrap(fetch("https://perdu.com"))
+let res = await awrap('network-error', fetch("https://perdu.com"))
 ```
 
 `awrap()` lets you create results from functions that return promises. If the promise fails, the result is failed as well and the error is put as the cause. Note that `awrap()` returns a promise of the result.
@@ -86,7 +86,7 @@ let val = doSomething().unwrap()
 #### res.unwrapOr( _default_ )
 
 ```ts
-let json = wrap(() => JSON.parse(value)).unwrapOr({ data: {} })
+let json = wrap('err', () => JSON.parse(value)).unwrapOr({ data: {} })
 ```
 `res.unwrapOr()` lets you directly get the `value` of a result, or a default if the result is failed.
 
