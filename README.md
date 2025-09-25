@@ -49,3 +49,26 @@ if (res.ok) {
 - `res.error` can only be compared with actual, possible error types. Possible error types for a result are always known and can be auto completed by your editor
 - `res.cause` can hold any data and is also type checked.
 - We do not need to explicitly tell the possible returned types on a function, they are correctly inferred.
+
+## Documentation
+
+### wrap()
+
+```ts
+import { wrap } from "rizzly"
+
+let res = wrap(() => JSON.parse(value))
+```
+
+`wrap()` allows to create results from functions that can throw errors. If the function throws an `Error`, the exception is put as the `.cause`
+of the result. Otherwise, the returned value is put as the result value.
+
+### awrap()
+
+```ts
+import { awrap } from "rizzly"
+
+let res = await awrap(fetch("https://perdu.com"))
+```
+
+`awrap()` allows to create results from functions that return promises. If the promise fails, the result is failed as well and the error is put as the cause. Note that `awrap()` returns a promise of the result.
