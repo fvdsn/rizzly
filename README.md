@@ -36,10 +36,10 @@ function makeUsername(name: string) {
 let res = makeUsername("john smith")
 
 if (res.ok) {
-    console.log(`Username is ${res.value} !`)
+    console.log(res.value)
 } else if (res.error === "empty") {
-    console.error("Username is empty :(")
+    console.error("It's empty :(")
 } else if (res.error === "too-long") {
-    console.log(`Username is too long (max: ${res.cause.max})`)
+    console.log(`Too long ! (max: ${res.cause.max})`)
 }
 ```
