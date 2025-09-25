@@ -44,7 +44,7 @@ if (res.ok) {
 }
 ```
 - We did not write any type, yet everything is type checked.
-- You cannot get the value out of `res` without checking `ok` (or using a convenience method, let's see later)
+- We cannot get the value out of `res` without checking `ok` (or using a convenience method, let's see later)
 - `res.error` can only be compared with actual, possible error types. Possible error types for a result are always known and can be auto completed by your editor
 - `res.cause` can hold any data and is also type checked.
-- You do not need to explicitly tell the possible returned types on a function, they are correctly inferred.
+- We do not need to explicitly tell the possible returned types on a function, they are correctly inferred.
