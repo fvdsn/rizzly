@@ -14,3 +14,6 @@
 <br/>
 
 ## What is rizzly ?
+
+Rizzly allows you to handle your application errors with results types instead of exceptions. It is similar to
+other popular results type libraries like <a href="https://github.com/supermacro/neverthrow">neverthrow</a> and <a href="https://github.com/traverse1984/oxide.ts">oxide.ts</a>
