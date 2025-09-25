@@ -137,3 +137,36 @@ let userName = getUser().match({
 })
 ```
 `res.match()` takes an `ok` and an `err` callback that return the value of the `match` call.
+
+## Types
+
+### Ok<_T_>
+> fields:
+> - ok: true
+> - value: _T_
+
+The type of a succesfull result
+
+### Err<_E extends string_, _C_>
+> fields:
+> - ok: false
+> - error: _E_
+> - cause: _C_
+
+The type of a failed result
+
+### Result<_T_, _E extends string_>
+> Ok<_T_> | Err<_E_, _undefined_>
+
+Basic result, without a cause. If you want to specify multiple possible errors, you can put them as a string union.
+
+```ts
+function doManyThings(): Result<number, "ERROR_A" | "ERROR_B" | "ERROR_C"> {
+    ...
+}
+```
+
+### ResultWithCause<_T_, _E extends string_, _C_>
+> Ok<_T_> | Err<_E_,_C_>
+
+When you want to specify the cause.
