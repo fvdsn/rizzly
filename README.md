@@ -141,14 +141,12 @@ let userName = getUser().match({
 ## Types
 
 ### Ok<_T_>
-> fields:
 > - ok: true
 > - value: _T_
 
 The type of a succesfull result
 
 ### Err<_E extends string_, _C_>
-> fields:
 > - ok: false
 > - error: _E_
 > - cause: _C_
