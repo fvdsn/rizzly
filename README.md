@@ -16,4 +16,30 @@
 ## What is rizzly ?
 
 Rizzly allows you to handle your application errors with results types instead of exceptions. It is similar to
-other popular results type libraries like <a href="https://github.com/supermacro/neverthrow">neverthrow</a> and <a href="https://github.com/traverse1984/oxide.ts">oxide.ts</a>
+other popular results type libraries like <a href="https://github.com/supermacro/neverthrow">neverthrow</a> and <a href="https://github.com/traverse1984/oxide.ts">oxide.ts</a> but with much better static type inference. Rizzly is tiny and has zero dependencies.
+
+Let's have a look at an example
+
+```ts
+import { ok, error } from 'rizzly'
+
+function makeUsername(name: string) {
+    if (!name) {
+        return error("empty-string")
+    } else if (name.length >= 10) {
+        return error("too-long", { length: name.length, max: 10})
+    } else {
+        return ok(name.replace(" ", "_").toLowerCase())
+    }
+}
+
+let res = makeUsername("john smith")
+
+if (res.ok) {
+    console.log(`Username is ${res.value} !`)
+} else if (res.error === "empty-string") {
+    console.error("Username is empty :(")
+} else if (res.error === "too-long") {
+    console.log(`Username is too long (max: ${res.cause.max})`)
+}
+```
