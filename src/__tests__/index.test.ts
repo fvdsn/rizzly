@@ -895,4 +895,320 @@ describe("Result Types", () => {
             });
         });
     });
+
+    describe("Edge cases and type safety", () => {
+        describe("Falsy value handling", () => {
+            it("should handle falsy values correctly in Ok", () => {
+                expect(ok(0).unwrap()).toBe(0);
+                expect(ok("").unwrap()).toBe("");
+                expect(ok(false).unwrap()).toBe(false);
+                expect(ok(null).unwrap()).toBe(null);
+                expect(ok(undefined).unwrap()).toBe(undefined);
+                expect(ok(NaN).unwrap()).toBe(NaN);
+            });
+
+            it("should distinguish between falsy values and default in unwrapOr", () => {
+                expect(ok(0).unwrapOr(99)).toBe(0);
+                expect(ok("").unwrapOr("default")).toBe("");
+                expect(ok(false).unwrapOr(true)).toBe(false);
+                expect(ok(null).unwrapOr("not null")).toBe(null);
+
+                expect(error("ERROR").unwrapOr(0)).toBe(0);
+                expect(error("ERROR").unwrapOr("")).toBe("");
+                expect(error("ERROR").unwrapOr(false)).toBe(false);
+                expect(error("ERROR").unwrapOr(null)).toBe(null);
+            });
+
+            it("should handle falsy values in transformations", () => {
+                expect(ok(0).map(x => x + 1).unwrap()).toBe(1);
+                expect(ok("").map(s => s.length).unwrap()).toBe(0);
+                expect(ok(false).map(b => !b).unwrap()).toBe(true);
+                expect(ok(null).map(n => n === null).unwrap()).toBe(true);
+            });
+        });
+
+        describe("Type coercion and strict equality", () => {
+            it("should maintain strict equality for primitive values", () => {
+                const okZero = ok(0);
+                const okEmptyString = ok("");
+                const okFalse = ok(false);
+
+                expect(okZero.unwrap()).toBe(0);
+                expect(okZero.unwrap()).not.toBe("0");
+                expect(okZero.unwrap()).not.toBe(false);
+
+                expect(okEmptyString.unwrap()).toBe("");
+                expect(okEmptyString.unwrap()).not.toBe(0);
+                expect(okEmptyString.unwrap()).not.toBe(false);
+
+                expect(okFalse.unwrap()).toBe(false);
+                expect(okFalse.unwrap()).not.toBe(0);
+                expect(okFalse.unwrap()).not.toBe("");
+            });
+
+            it("should handle object reference equality", () => {
+                const obj1 = { a: 1 };
+                const obj2 = { a: 1 };
+                const okObj1 = ok(obj1);
+
+                expect(okObj1.unwrap()).toBe(obj1);
+                expect(okObj1.unwrap()).not.toBe(obj2);
+                expect(okObj1.unwrap()).toEqual(obj2);
+            });
+        });
+
+        describe("Error message edge cases", () => {
+            it("should handle empty error strings", () => {
+                const err = error("");
+                expect(err.error).toBe("");
+                expect(() => err.unwrap()).toThrow("");
+            });
+
+            it("should handle very long error strings", () => {
+                const longError = "A".repeat(1000);
+                const err = error(longError);
+                expect(err.error).toBe(longError);
+                expect(err.error.length).toBe(1000);
+            });
+
+            it("should handle special characters in error strings", () => {
+                const specialChars = "ERROR: \n\t\r\"'\\/@#$%^&*()[]{}|<>?";
+                const err = error(specialChars);
+                expect(err.error).toBe(specialChars);
+                expect(() => err.unwrap()).toThrow(specialChars);
+            });
+
+            it("should handle unicode and emojis in error strings", () => {
+                const unicodeError = "ERROR: 💥🚨 Unicode test 中文 русский 🔥";
+                const err = error(unicodeError);
+                expect(err.error).toBe(unicodeError);
+                expect(() => err.unwrap()).toThrow(unicodeError);
+            });
+        });
+
+        describe("Complex cause types", () => {
+            it("should handle circular references in cause without infinite loops", () => {
+                const circularObj: any = { name: "circular" };
+                circularObj.self = circularObj;
+
+                const err = error("CIRCULAR_ERROR", circularObj);
+                expect(err.cause).toBe(circularObj);
+                expect(err.cause.self).toBe(circularObj);
+
+                // Should not cause infinite loop when accessing
+                expect(err.cause.name).toBe("circular");
+            });
+
+            it("should handle deeply nested objects as cause", () => {
+                const deepObj = {
+                    level1: {
+                        level2: {
+                            level3: {
+                                level4: {
+                                    value: "deep value"
+                                }
+                            }
+                        }
+                    }
+                };
+
+                const err = error("DEEP_ERROR", deepObj);
+                expect(err.cause.level1.level2.level3.level4.value).toBe("deep value");
+            });
+
+            it("should handle function as cause", () => {
+                const causeFunction = () => "I am a cause function";
+                const err = error("FUNCTION_ERROR", causeFunction);
+
+                expect(typeof err.cause).toBe("function");
+                expect(err.cause()).toBe("I am a cause function");
+            });
+
+            it("should handle class instances as cause", () => {
+                class CustomError {
+                    constructor(public message: string) {}
+                    toString() {
+                        return `CustomError: ${this.message}`;
+                    }
+                }
+
+                const customErr = new CustomError("custom message");
+                const err = error("CLASS_ERROR", customErr);
+
+                expect(err.cause).toBeInstanceOf(CustomError);
+                expect(err.cause.message).toBe("custom message");
+                expect(err.cause.toString()).toBe("CustomError: custom message");
+            });
+        });
+
+        describe("Memory and performance edge cases", () => {
+            it("should handle very large arrays", () => {
+                const largeArray = new Array(10000).fill(0).map((_, i) => i);
+                const okArray = ok(largeArray);
+
+                expect(okArray.unwrap().length).toBe(10000);
+                expect(okArray.unwrap()[9999]).toBe(9999);
+
+                const doubled = okArray.map(arr => arr.map(x => x * 2));
+                expect(doubled.unwrap()[5000]).toBe(10000);
+            });
+
+            it("should handle multiple chained operations efficiently", () => {
+                const result = ok(1)
+                    .map(x => x + 1)
+                    .map(x => x * 2)
+                    .map(x => x + 3)
+                    .map(x => x * 4)
+                    .map(x => x + 5)
+                    .map(x => x * 6)
+                    .map(x => x + 7)
+                    .map(x => x * 8)
+                    .map(x => x + 9)
+                    .map(x => x * 10);
+
+                // ((((((((1 + 1) * 2 + 3) * 4 + 5) * 6 + 7) * 8 + 9) * 10) = 16490
+                expect(result.unwrap()).toBe(16490);
+            });
+
+            it("should handle large error chains efficiently", () => {
+                let err: any = error("INITIAL_ERROR", "cause");
+
+                for (let i = 0; i < 100; i++) {
+                    err = err
+                        .mapError((e: string) => `${e}_${i}`)
+                        .mapCause((c: string) => `${c}_${i}`);
+                }
+
+                expect(err.error).toContain("INITIAL_ERROR");
+                expect(err.error).toContain("_99");
+                expect(err.cause).toContain("cause");
+                expect(err.cause).toContain("_99");
+            });
+        });
+
+        describe("Prototype and property integrity", () => {
+            it("should maintain correct prototype chain", () => {
+                const okResult = ok(42);
+                const errResult = error("ERROR");
+
+                expect(okResult.constructor.name).toBe("Ok");
+                expect(errResult.constructor.name).toBe("Err");
+
+                expect(okResult.hasOwnProperty('ok')).toBe(true);
+                expect(okResult.hasOwnProperty('value')).toBe(true);
+                expect(okResult.hasOwnProperty('error')).toBe(false);
+                expect(okResult.hasOwnProperty('cause')).toBe(false);
+
+                expect(errResult.hasOwnProperty('ok')).toBe(true);
+                expect(errResult.hasOwnProperty('error')).toBe(true);
+                expect(errResult.hasOwnProperty('cause')).toBe(true);
+                expect(errResult.hasOwnProperty('value')).toBe(false);
+            });
+
+
+            it("should not expose internal methods unexpectedly", () => {
+                const okResult = ok(42);
+                const errResult = error("ERROR");
+
+                const okMethods = Object.getOwnPropertyNames(Object.getPrototypeOf(okResult));
+                const errMethods = Object.getOwnPropertyNames(Object.getPrototypeOf(errResult));
+
+                expect(okMethods).toContain('unwrap');
+                expect(okMethods).toContain('map');
+                expect(okMethods).toContain('match');
+                expect(errMethods).toContain('unwrap');
+                expect(errMethods).toContain('map');
+                expect(errMethods).toContain('match');
+            });
+        });
+
+        describe("Edge cases with transformations", () => {
+            it("should handle transformations that throw errors", () => {
+                const okResult = ok(42);
+
+                // This should throw during the transformation, not return an Err
+                expect(() => {
+                    okResult.map(x => {
+                        if (x > 40) throw new Error("Transform error");
+                        return x * 2;
+                    });
+                }).toThrow("Transform error");
+            });
+
+            it("should handle transformations that return functions", () => {
+                const okResult = ok(5);
+                const functionResult = okResult.map(x => (y: number) => x + y);
+
+                expect(typeof functionResult.unwrap()).toBe("function");
+                expect(functionResult.unwrap()(10)).toBe(15);
+            });
+
+            it("should handle transformations that return Results", () => {
+                const nestedOk = ok(42).map(x => ok(x * 2));
+                const nestedErr = ok(42).map(x => error("NESTED_ERROR"));
+
+                expect(nestedOk.unwrap().ok).toBe(true);
+                expect(nestedOk.unwrap().unwrap()).toBe(84);
+
+                expect(nestedErr.unwrap().ok).toBe(false);
+                expect(nestedErr.unwrap().error).toBe("NESTED_ERROR");
+            });
+        });
+
+        describe("Type inference edge cases", () => {
+            it("should maintain type information through method chains", () => {
+                // Testing that TypeScript correctly infers types
+                const stringResult = ok("hello").map(s => s.toUpperCase());
+                const numberResult = ok(42).map(n => n * 2);
+                const booleanResult = ok(true).map(b => !b);
+
+                // These should compile without type errors
+                expect(typeof stringResult.unwrap()).toBe("string");
+                expect(typeof numberResult.unwrap()).toBe("number");
+                expect(typeof booleanResult.unwrap()).toBe("boolean");
+            });
+
+            it("should handle union type scenarios", () => {
+                function getValue(succeed: boolean): any {
+                    if (succeed) {
+                        return ok(42);
+                    } else {
+                        return error("FAILED");
+                    }
+                }
+
+                const successCase = getValue(true);
+                const failureCase = getValue(false);
+
+                expect(successCase.unwrap()).toBe(42);
+                expect(() => failureCase.unwrap()).toThrow("FAILED");
+            });
+        });
+
+        describe("Boundary value testing", () => {
+            it("should handle JavaScript number edge cases", () => {
+                expect(ok(Number.MAX_VALUE).unwrap()).toBe(Number.MAX_VALUE);
+                expect(ok(Number.MIN_VALUE).unwrap()).toBe(Number.MIN_VALUE);
+                expect(ok(Number.POSITIVE_INFINITY).unwrap()).toBe(Number.POSITIVE_INFINITY);
+                expect(ok(Number.NEGATIVE_INFINITY).unwrap()).toBe(Number.NEGATIVE_INFINITY);
+                expect(ok(Number.MAX_SAFE_INTEGER).unwrap()).toBe(Number.MAX_SAFE_INTEGER);
+                expect(ok(Number.MIN_SAFE_INTEGER).unwrap()).toBe(Number.MIN_SAFE_INTEGER);
+            });
+
+            it("should handle NaN correctly", () => {
+                const nanResult = ok(NaN);
+                expect(Number.isNaN(nanResult.unwrap())).toBe(true);
+                expect(nanResult.map(n => n + 1).unwrap()).toBe(NaN);
+                expect(Number.isNaN(nanResult.map(n => n + 1).unwrap())).toBe(true);
+            });
+
+            it("should handle very large strings", () => {
+                const largeString = "x".repeat(100000);
+                const okString = ok(largeString);
+
+                expect(okString.unwrap().length).toBe(100000);
+                expect(okString.map(s => s.substring(0, 5)).unwrap()).toBe("xxxxx");
+            });
+        });
+    });
 });
