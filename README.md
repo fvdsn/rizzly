@@ -7,6 +7,7 @@
         by <a href="https://x.com/fvdessen">@fvdessen</a>
     </p>
     <p align="center">
+        <a href="https://github.com/fvdsn/rizzly/actions/workflows/test.yml" rel="nofollow"><img src="https://github.com/fvdsn/rizzly/actions/workflows/test.yml/badge.svg" alt="Test Status"></a>
         <a href="https://opensource.org/licenses/MIT" rel="nofollow"><img src="https://img.shields.io/github/license/fvdsn/rizzly" alt="License"></a>
     </p>
 </div>
