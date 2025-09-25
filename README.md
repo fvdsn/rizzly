@@ -25,11 +25,11 @@ import { ok, error } from 'rizzly'
 
 function makeUsername(name: string) {
     if (!name) {
-        return error("empty-string")
+        return error("empty")
     } else if (name.length >= 10) {
-        return error("too-long", { length: name.length, max: 10})
+        return error("too-long", {max: 10})
     } else {
-        return ok(name.replace(" ", "_").toLowerCase())
+        return ok(name)
     }
 }
 
@@ -37,7 +37,7 @@ let res = makeUsername("john smith")
 
 if (res.ok) {
     console.log(`Username is ${res.value} !`)
-} else if (res.error === "empty-string") {
+} else if (res.error === "empty") {
     console.error("Username is empty :(")
 } else if (res.error === "too-long") {
     console.log(`Username is too long (max: ${res.cause.max})`)
