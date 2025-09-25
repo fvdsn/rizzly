@@ -75,7 +75,7 @@ let res = await awrap(fetch("https://perdu.com"))
 
 ## Methods of _Result_
 
-### res.unwrap()
+#### res.unwrap()
 
 ```ts
 
@@ -83,14 +83,14 @@ let val = doSomething().unwrap()
 ```
 `res.unwrap()` lets you directly get the value of a result, but throws an Error if the result is failed. The `cause` of the result is set as the cause of the `Error`, and the `error` as its message. Mainly useful in tests where you expect things to go right.
 
-### res.unwrapOr( _default_ )
+#### res.unwrapOr( _default_ )
 
 ```ts
 let json = wrap(() => JSON.parse(value)).unwrapOr({ data: {} })
 ```
 `res.unwrapOr()` lets you directly get the `value` of a result, or a default if the result is failed.
 
-### res.map( _fn_ )
+#### res.map( _fn_ )
 
 ```ts
 let res = getUsername().map((name) => name.toLowerCase())
@@ -98,21 +98,21 @@ let res = getUsername().map((name) => name.toLowerCase())
 
 `res.map()` lets you change the `value` of the result without needing to unwrap the value.
 
-### res.mapError( _fn_ )
+#### res.mapError( _fn_ )
 
 ```ts
 let res = getData().mapError((error) => i18n.translate(error))
 ```
 `res.mapError()` lets you change the value of the `error` in case of failure. The `cause` is left untouched.
 
-### res.mapCause( _fn_ )
+#### res.mapCause( _fn_ )
 
 ```ts
 let res = getData().mapCause((cause) => { errors: [cause] })
 ```
 `res.mapCause()` lets you alter the `cause` of the failure. The `error` name is left untouched.
 
-### res.withError( _string_ )
+#### res.withError( _string_ )
 
 ```ts
 let res = doManyThings().withError('something failed')
@@ -120,7 +120,7 @@ let res = doManyThings().withError('something failed')
 `res.withError()` lets you set the error type of the result in case of failure. The `cause` is left untouched. This is useful when a
 result has many possible `errors` which you do not care about in a specific context.
 
-### res.withErrorAndCause( _string_, _any_ )
+#### res.withErrorAndCause( _string_, _any_ )
 
 ```ts
 let res = doManyThings().withErrorAndCause('something failed', { code: `ERR48321` })
