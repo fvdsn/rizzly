@@ -73,7 +73,7 @@ let res = await awrap(fetch("https://perdu.com"))
 
 `awrap()` lets you create results from functions that return promises. If the promise fails, the result is failed as well and the error is put as the cause. Note that `awrap()` returns a promise of the result.
 
-## Methods on Result
+## Methods of Result
 
 ### res.unwrap()
 
