@@ -1552,4 +1552,309 @@ describe("Result Types", () => {
             });
         });
     });
+
+    describe("Integration and chaining comprehensive tests", () => {
+        describe("Complex method chaining", () => {
+            it("should handle long chains of Ok operations", () => {
+                const result = ok(10)
+                    .map(x => x * 2)
+                    .map(x => x + 5)
+                    .map(x => x.toString())
+                    .map(s => s.padStart(3, '0'))
+                    .mapOr("fallback", s => s.toUpperCase())
+                    .map(s => `Result: ${s}`);
+
+                expect(result.unwrap()).toBe("Result: 025");
+            });
+
+            it("should handle long chains with mixed operations", () => {
+                const result = ok("hello")
+                    .map(s => s.toUpperCase())
+                    .map(s => s.split(''))
+                    .map(arr => arr.reverse())
+                    .map(arr => arr.join('-'))
+                    .mapOr("default", s => s.toLowerCase())
+                    .withError("CHAIN_ERROR");
+
+                expect(result.unwrap()).toBe("o-l-l-e-h");
+            });
+
+            it("should short-circuit on first error in chains", () => {
+                const mapSpy = jest.fn();
+                const result = error("INITIAL_ERROR")
+                    .map(mapSpy)
+                    .mapOr("fallback", () => "not called")
+                    .map(s => s.toUpperCase());
+
+                expect(result.unwrap()).toBe("FALLBACK");
+                expect(mapSpy).not.toHaveBeenCalled();
+            });
+
+            it("should handle error transformations in chains", () => {
+                const result = error("validation_error", "field is required")
+                    .mapError(e => e.toUpperCase())
+                    .mapError(e => `ERR_${e}`)
+                    .mapCause(c => `Cause: ${c}`)
+                    .withError("FINAL_ERROR");
+
+                expect(result.ok).toBe(false);
+                if (!result.ok) {
+                    expect(result.error).toBe("FINAL_ERROR");
+                    expect(result.cause).toBe("Cause: field is required");
+                }
+            });
+        });
+
+        describe("Real-world scenarios", () => {
+            interface User {
+                id: number;
+                name: string;
+                email: string;
+                active: boolean;
+            }
+
+            function validateUser(user: any): Result<User, "VALIDATION_ERROR"> {
+                if (!user) return error("VALIDATION_ERROR");
+                if (typeof user.id !== 'number') return error("VALIDATION_ERROR");
+                if (typeof user.name !== 'string' || user.name.length === 0) return error("VALIDATION_ERROR");
+                if (typeof user.email !== 'string' || !user.email.includes('@')) return error("VALIDATION_ERROR");
+
+                return ok({
+                    id: user.id,
+                    name: user.name,
+                    email: user.email.toLowerCase(),
+                    active: user.active ?? true
+                });
+            }
+
+            function formatUserDisplay(user: User): string {
+                const status = user.active ? "Active" : "Inactive";
+                return `${user.name} <${user.email}> [${status}]`;
+            }
+
+            it("should handle user validation and formatting pipeline", () => {
+                const validUser = { id: 1, name: "John Doe", email: "JOHN@EXAMPLE.COM", active: true };
+                const result = validateUser(validUser)
+                    .map(formatUserDisplay)
+                    .mapOr("Unknown User", display => `User: ${display}`);
+
+                expect(result.unwrap()).toBe("User: John Doe <john@example.com> [Active]");
+            });
+
+            it("should handle invalid user gracefully", () => {
+                const invalidUser = { id: "not-a-number", name: "", email: "invalid-email" };
+                const result = validateUser(invalidUser)
+                    .map(formatUserDisplay)
+                    .mapOr("Unknown User", display => `User: ${display}`);
+
+                expect(result.unwrap()).toBe("Unknown User");
+            });
+
+            it("should handle null user input", () => {
+                const result = validateUser(null)
+                    .mapError(e => `ERR_${e}`)
+                    .match({
+                        ok: user => `Valid: ${user.name}`,
+                        err: (error) => `Invalid: ${error}`
+                    });
+
+                expect(result).toBe("Invalid: ERR_VALIDATION_ERROR");
+            });
+        });
+
+        describe("Async integration patterns", () => {
+            async function fetchUser(id: number): Promise<Result<{ name: string }, "NOT_FOUND">> {
+                await new Promise(resolve => setTimeout(resolve, 1));
+                if (id === 1) return ok({ name: "Alice" });
+                return error("NOT_FOUND");
+            }
+
+            it("should handle successful async operations", async () => {
+                const userResult = await fetchUser(1);
+
+                expect(userResult.ok).toBe(true);
+                if (userResult.ok) {
+                    expect(userResult.value.name).toBe("Alice");
+                }
+            });
+
+            it("should handle user not found scenario", async () => {
+                const userResult = await fetchUser(999);
+
+                const result = userResult.match({
+                    ok: user => `Welcome ${user.name}`,
+                    err: () => "Please register"
+                });
+
+                expect(result).toBe("Please register");
+            });
+
+            it("should handle mixed sync/async workflows", async () => {
+                const syncResult = ok(1);
+                const asyncResult = await awrap("FETCH_ERROR", fetchUser(syncResult.unwrap()));
+
+                expect(asyncResult.ok).toBe(true);
+                if (asyncResult.ok && asyncResult.value.ok) {
+                    expect(asyncResult.value.value.name).toBe("Alice");
+                }
+            });
+        });
+
+        describe("Error handling patterns", () => {
+            function divideBy(a: number, b: number): Result<number, "DIVISION_BY_ZERO"> {
+                if (b === 0) return error("DIVISION_BY_ZERO");
+                return ok(a / b);
+            }
+
+            function parseNumber(str: string): Result<number, "PARSE_ERROR"> {
+                const num = parseFloat(str);
+                if (isNaN(num)) return error("PARSE_ERROR");
+                return ok(num);
+            }
+
+            it("should handle successful computations", () => {
+                const result = parseNumber("10")
+                    .map(a => divideBy(a, 2).unwrapOr(0))
+                    .unwrapOr(0);
+
+                expect(result).toBe(5);
+            });
+
+            it("should handle division by zero", () => {
+                const result = divideBy(10, 0).unwrapOr(-1);
+                expect(result).toBe(-1);
+            });
+
+            it("should handle parse error gracefully", () => {
+                const result = parseNumber("invalid").unwrapOr(0);
+                expect(result).toBe(0);
+            });
+        });
+
+        describe("Type system integration", () => {
+            function queryDatabase(query: string): Result<{ rows: number }, "CONNECTION_FAILED" | "QUERY_FAILED"> {
+                if (query.includes("SELECT")) return ok({ rows: 5 });
+                if (query.includes("INVALID")) return error("QUERY_FAILED");
+                return error("CONNECTION_FAILED");
+            }
+
+            function validateInput(input: string): Result<string, "INVALID_INPUT" | "MISSING_FIELD"> {
+                if (!input) return error("MISSING_FIELD");
+                if (input.length < 3) return error("INVALID_INPUT");
+                return ok(input.trim());
+            }
+
+            it("should handle successful query pipeline", () => {
+                const validationResult = validateInput("SELECT * FROM users");
+                expect(validationResult.ok).toBe(true);
+
+                if (validationResult.ok) {
+                    const queryResult = queryDatabase(validationResult.value);
+                    expect(queryResult.ok).toBe(true);
+                    if (queryResult.ok) {
+                        expect(queryResult.value.rows).toBe(5);
+                    }
+                }
+            });
+
+            it("should handle validation errors", () => {
+                const result = validateInput("");
+                expect(result.ok).toBe(false);
+                if (!result.ok) {
+                    expect(result.error).toBe("MISSING_FIELD");
+                }
+            });
+
+            it("should handle database errors", () => {
+                const result = queryDatabase("INVALID QUERY");
+                expect(result.ok).toBe(false);
+                if (!result.ok) {
+                    expect(result.error).toBe("QUERY_FAILED");
+                }
+            });
+        });
+
+        describe("Performance and memory patterns", () => {
+            it("should handle large data transformations efficiently", () => {
+                const largeArray = new Array(10000).fill(0).map((_, i) => i);
+
+                const result = ok(largeArray)
+                    .map(arr => arr.filter(n => n % 2 === 0))
+                    .map(arr => arr.map(n => n * 2))
+                    .map(arr => arr.slice(0, 100))
+                    .map(arr => arr.reduce((sum, n) => sum + n, 0));
+
+                expect(result.unwrap()).toBe(19800); // Sum of first 100 even numbers doubled
+            });
+
+            it("should handle nested Result transformations", () => {
+                const nestedOk = ok(ok(42));
+
+                const flattened = nestedOk.map(inner => inner.unwrap());
+
+                expect(flattened.unwrap()).toBe(42);
+            });
+
+            it("should handle Result arrays and batch operations", () => {
+                const results: Result<number, string>[] = [ok(1), error("ERROR"), ok(3), ok(4)];
+
+                const processedResults = results.map(result =>
+                    result.map(x => x * 2).unwrapOr(0)
+                );
+
+                expect(processedResults).toEqual([2, 0, 6, 8]);
+
+                const allSuccessful = results.every(r => r.ok);
+                const someSuccessful = results.some(r => r.ok);
+                const successfulCount = results.filter(r => r.ok).length;
+
+                expect(allSuccessful).toBe(false);
+                expect(someSuccessful).toBe(true);
+                expect(successfulCount).toBe(3);
+            });
+        });
+
+        describe("Edge case integrations", () => {
+            it("should handle recursive Result operations", () => {
+                function factorial(n: number): Result<number, "NEGATIVE_INPUT"> {
+                    if (n < 0) return error("NEGATIVE_INPUT");
+                    if (n <= 1) return ok(1);
+
+                    return factorial(n - 1).map(prev => prev * n);
+                }
+
+                expect(factorial(5).unwrap()).toBe(120);
+                expect(factorial(-1).ok).toBe(false);
+                expect(factorial(0).unwrap()).toBe(1);
+            });
+
+            it("should handle Result in callback patterns", () => {
+                const callback = (result: Result<number, string>) => {
+                    return result
+                        .map(n => n * 2)
+                        .mapError(e => `CALLBACK_${e}`)
+                        .match({
+                            ok: value => `Success: ${value}`,
+                            err: error => `Error: ${error}`
+                        });
+                };
+
+                expect(callback(ok(21))).toBe("Success: 42");
+                expect(callback(error("FAILED"))).toBe("Error: CALLBACK_FAILED");
+            });
+
+            it("should maintain immutability through complex operations", () => {
+                const original = ok({ count: 5, items: ["a", "b", "c"] });
+
+                const modified = original
+                    .map(obj => ({ ...obj, count: obj.count + 1 }))
+                    .map(obj => ({ ...obj, items: [...obj.items, "d"] }));
+
+                expect(original.unwrap().count).toBe(5);
+                expect(original.unwrap().items).toEqual(["a", "b", "c"]);
+                expect(modified.unwrap().count).toBe(6);
+                expect(modified.unwrap().items).toEqual(["a", "b", "c", "d"]);
+            });
+        });
+    });
 });
