@@ -1211,4 +1211,345 @@ describe("Result Types", () => {
             });
         });
     });
+
+    describe("Utility functions comprehensive tests", () => {
+        describe("ok() function", () => {
+            it("should create Ok instances with different value types", () => {
+                expect(ok(42)).toBeInstanceOf(Object);
+                expect(ok("hello")).toBeInstanceOf(Object);
+                expect(ok(true)).toBeInstanceOf(Object);
+                expect(ok([])).toBeInstanceOf(Object);
+                expect(ok({})).toBeInstanceOf(Object);
+                expect(ok(null)).toBeInstanceOf(Object);
+                expect(ok(undefined)).toBeInstanceOf(Object);
+            });
+
+            it("should handle no arguments correctly", () => {
+                const result = ok();
+                expect(result.ok).toBe(true);
+                expect(result.value).toBe(undefined);
+                expect(result.unwrap()).toBe(undefined);
+            });
+
+            it("should preserve reference equality for objects", () => {
+                const obj = { test: "value" };
+                const result = ok(obj);
+                expect(result.unwrap()).toBe(obj);
+                expect(result.unwrap() === obj).toBe(true);
+            });
+
+            it("should handle symbols", () => {
+                const sym = Symbol("test");
+                const result = ok(sym);
+                expect(result.unwrap()).toBe(sym);
+                expect(typeof result.unwrap()).toBe("symbol");
+            });
+
+            it("should handle BigInt", () => {
+                const bigInt = BigInt(9007199254740991);
+                const result = ok(bigInt);
+                expect(result.unwrap()).toBe(bigInt);
+                expect(typeof result.unwrap()).toBe("bigint");
+            });
+        });
+
+        describe("error() function", () => {
+            it("should create Err instances with string errors", () => {
+                const err = error("TEST_ERROR");
+                expect(err.ok).toBe(false);
+                expect(err.error).toBe("TEST_ERROR");
+                expect(err.cause).toBe(undefined);
+            });
+
+            it("should create Err instances with causes of different types", () => {
+                const stringErr = error("ERROR", "string cause");
+                const objectErr = error("ERROR", { reason: "object cause" });
+                const numberErr = error("ERROR", 404);
+                const errorErr = error("ERROR", new Error("error cause"));
+
+                expect(stringErr.cause).toBe("string cause");
+                expect(objectErr.cause).toEqual({ reason: "object cause" });
+                expect(numberErr.cause).toBe(404);
+                expect(errorErr.cause).toBeInstanceOf(Error);
+            });
+
+            it("should handle overloaded signatures correctly", () => {
+                // Without cause
+                const err1 = error("NO_CAUSE");
+                expect(err1.error).toBe("NO_CAUSE");
+                expect(err1.cause).toBe(undefined);
+
+                // With cause
+                const err2 = error("WITH_CAUSE", "some cause");
+                expect(err2.error).toBe("WITH_CAUSE");
+                expect(err2.cause).toBe("some cause");
+            });
+
+            it("should handle empty string errors", () => {
+                const err = error("");
+                expect(err.error).toBe("");
+                expect(err.cause).toBe(undefined);
+            });
+
+            it("should preserve cause reference equality", () => {
+                const causeObj = { nested: { value: 42 } };
+                const err = error("ERROR", causeObj);
+                expect(err.cause).toBe(causeObj);
+                expect(err.cause === causeObj).toBe(true);
+            });
+        });
+
+        describe("wrap() function", () => {
+            it("should catch and wrap synchronous errors", () => {
+                const result = wrap("SYNC_ERROR", () => {
+                    throw new Error("Something went wrong");
+                });
+
+                expect(result.ok).toBe(false);
+                if (!result.ok) {
+                    expect(result.error).toBe("SYNC_ERROR");
+                    expect(result.cause).toBeInstanceOf(Error);
+                }
+            });
+
+            it("should return success for non-throwing functions", () => {
+                const result = wrap("NO_ERROR", () => {
+                    return "success value";
+                });
+
+                expect(result.ok).toBe(true);
+                if (result.ok) {
+                    expect(result.value).toBe("success value");
+                }
+            });
+
+            it("should handle functions that return different types", () => {
+                const numberResult = wrap("ERROR", () => 42);
+                const objectResult = wrap("ERROR", () => ({ key: "value" }));
+                const arrayResult = wrap("ERROR", () => [1, 2, 3]);
+
+                expect(numberResult.ok).toBe(true);
+                expect(objectResult.ok).toBe(true);
+                expect(arrayResult.ok).toBe(true);
+
+                if (numberResult.ok) expect(numberResult.value).toBe(42);
+                if (objectResult.ok) expect(objectResult.value).toEqual({ key: "value" });
+                if (arrayResult.ok) expect(arrayResult.value).toEqual([1, 2, 3]);
+            });
+
+            it("should handle non-Error throws", () => {
+                const stringThrow = wrap("STRING_ERROR", () => {
+                    throw "string error";
+                });
+                const numberThrow = wrap("NUMBER_ERROR", () => {
+                    throw 404;
+                });
+                const objectThrow = wrap("OBJECT_ERROR", () => {
+                    throw { reason: "object error" };
+                });
+
+                expect(stringThrow.ok).toBe(false);
+                expect(numberThrow.ok).toBe(false);
+                expect(objectThrow.ok).toBe(false);
+
+                if (!stringThrow.ok) expect(stringThrow.cause).toBe(undefined);
+                if (!numberThrow.ok) expect(numberThrow.cause).toBe(undefined);
+                if (!objectThrow.ok) expect(objectThrow.cause).toBe(undefined);
+            });
+
+            it("should handle complex Error types", () => {
+                class CustomError extends Error {
+                    constructor(message: string, public code: number) {
+                        super(message);
+                        this.name = "CustomError";
+                    }
+                }
+
+                const result = wrap("CUSTOM_ERROR", () => {
+                    throw new CustomError("Custom error message", 500);
+                });
+
+                expect(result.ok).toBe(false);
+                if (!result.ok) {
+                    expect(result.error).toBe("CUSTOM_ERROR");
+                    expect(result.cause).toBeInstanceOf(CustomError);
+                }
+            });
+
+            it("should handle functions that return falsy values", () => {
+                const zeroResult = wrap("ERROR", () => 0);
+                const emptyStringResult = wrap("ERROR", () => "");
+                const falseResult = wrap("ERROR", () => false);
+                const nullResult = wrap("ERROR", () => null);
+
+                expect(zeroResult.ok).toBe(true);
+                expect(emptyStringResult.ok).toBe(true);
+                expect(falseResult.ok).toBe(true);
+                expect(nullResult.ok).toBe(true);
+
+                if (zeroResult.ok) expect(zeroResult.value).toBe(0);
+                if (emptyStringResult.ok) expect(emptyStringResult.value).toBe("");
+                if (falseResult.ok) expect(falseResult.value).toBe(false);
+                if (nullResult.ok) expect(nullResult.value).toBe(null);
+            });
+        });
+
+        describe("awrap() function", () => {
+            it("should wrap resolved promises", async () => {
+                const result = await awrap("ASYNC_ERROR", Promise.resolve("success"));
+
+                expect(result.ok).toBe(true);
+                if (result.ok) {
+                    expect(result.value).toBe("success");
+                }
+            });
+
+            it("should wrap rejected promises with Error", async () => {
+                const promise = Promise.reject(new Error("Async error"));
+                const result = await awrap("ASYNC_ERROR", promise);
+
+                expect(result.ok).toBe(false);
+                if (!result.ok) {
+                    expect(result.error).toBe("ASYNC_ERROR");
+                    expect(result.cause).toBeInstanceOf(Error);
+                }
+            });
+
+            it("should handle rejected promises with non-Error values", async () => {
+                const stringReject = awrap("STRING_ERROR", Promise.reject("string error"));
+                const numberReject = awrap("NUMBER_ERROR", Promise.reject(404));
+                const objectReject = awrap("OBJECT_ERROR", Promise.reject({ reason: "object" }));
+
+                const [stringResult, numberResult, objectResult] = await Promise.all([
+                    stringReject, numberReject, objectReject
+                ]);
+
+                expect(stringResult.ok).toBe(false);
+                expect(numberResult.ok).toBe(false);
+                expect(objectResult.ok).toBe(false);
+
+                if (!stringResult.ok) expect(stringResult.cause).toBe(undefined);
+                if (!numberResult.ok) expect(numberResult.cause).toBe(undefined);
+                if (!objectResult.ok) expect(objectResult.cause).toBe(undefined);
+            });
+
+            it("should handle promises resolving to different types", async () => {
+                const numberPromise = awrap("ERROR", Promise.resolve(42));
+                const objectPromise = awrap("ERROR", Promise.resolve({ key: "value" }));
+                const arrayPromise = awrap("ERROR", Promise.resolve([1, 2, 3]));
+
+                const [numberResult, objectResult, arrayResult] = await Promise.all([
+                    numberPromise, objectPromise, arrayPromise
+                ]);
+
+                expect(numberResult.ok).toBe(true);
+                expect(objectResult.ok).toBe(true);
+                expect(arrayResult.ok).toBe(true);
+
+                if (numberResult.ok) expect(numberResult.value).toBe(42);
+                if (objectResult.ok) expect(objectResult.value).toEqual({ key: "value" });
+                if (arrayResult.ok) expect(arrayResult.value).toEqual([1, 2, 3]);
+            });
+
+            it("should handle promises resolving to falsy values", async () => {
+                const zeroPromise = awrap("ERROR", Promise.resolve(0));
+                const emptyStringPromise = awrap("ERROR", Promise.resolve(""));
+                const falsePromise = awrap("ERROR", Promise.resolve(false));
+                const nullPromise = awrap("ERROR", Promise.resolve(null));
+
+                const [zeroResult, emptyStringResult, falseResult, nullResult] = await Promise.all([
+                    zeroPromise, emptyStringPromise, falsePromise, nullPromise
+                ]);
+
+                expect(zeroResult.ok).toBe(true);
+                expect(emptyStringResult.ok).toBe(true);
+                expect(falseResult.ok).toBe(true);
+                expect(nullResult.ok).toBe(true);
+
+                if (zeroResult.ok) expect(zeroResult.value).toBe(0);
+                if (emptyStringResult.ok) expect(emptyStringResult.value).toBe("");
+                if (falseResult.ok) expect(falseResult.value).toBe(false);
+                if (nullResult.ok) expect(nullResult.value).toBe(null);
+            });
+
+
+            it("should handle immediately rejected promises", async () => {
+                const immediateReject = Promise.reject(new Error("Immediate error"));
+                const result = await awrap("IMMEDIATE_ERROR", immediateReject);
+
+                expect(result.ok).toBe(false);
+                if (!result.ok) {
+                    expect(result.error).toBe("IMMEDIATE_ERROR");
+                    expect(result.cause).toBeInstanceOf(Error);
+                }
+            });
+
+            it("should maintain error types through promise chains", async () => {
+                class NetworkError extends Error {
+                    constructor(message: string, public statusCode: number) {
+                        super(message);
+                        this.name = "NetworkError";
+                    }
+                }
+
+                const networkError = new NetworkError("Connection failed", 500);
+                const result = await awrap("NETWORK_ERROR", Promise.reject(networkError));
+
+                expect(result.ok).toBe(false);
+                if (!result.ok) {
+                    expect(result.cause).toBeInstanceOf(NetworkError);
+                }
+            });
+        });
+
+        describe("Utility function interactions", () => {
+            it("should work together in complex scenarios", async () => {
+                // Combining wrap and awrap
+                const wrappedAsync = wrap("WRAP_ERROR", () => {
+                    return awrap("ASYNC_ERROR", Promise.resolve("nested success"));
+                });
+
+                expect(wrappedAsync.ok).toBe(true);
+                if (wrappedAsync.ok) {
+                    const asyncResult = await wrappedAsync.value;
+                    expect(asyncResult.ok).toBe(true);
+                    if (asyncResult.ok) {
+                        expect(asyncResult.value).toBe("nested success");
+                    }
+                }
+            });
+
+            it("should handle error propagation through utility functions", () => {
+                const wrappedError = wrap("OUTER_ERROR", () => {
+                    const innerResult = error("INNER_ERROR", "inner cause");
+                    if (!innerResult.ok) {
+                        throw new Error(`Inner failed: ${innerResult.error}`);
+                    }
+                    throw new Error("This should not happen");
+                });
+
+                expect(wrappedError.ok).toBe(false);
+                if (!wrappedError.ok) {
+                    expect(wrappedError.error).toBe("OUTER_ERROR");
+                    expect(wrappedError.cause).toBeInstanceOf(Error);
+                }
+            });
+
+            it("should maintain type consistency across utility functions", () => {
+                const okValue = ok(42);
+                const errorValue = error("ERROR", "cause");
+
+                expect(typeof okValue.ok).toBe("boolean");
+                expect(typeof errorValue.ok).toBe("boolean");
+                expect(okValue.ok).toBe(true);
+                expect(errorValue.ok).toBe(false);
+
+                const wrappedOk = wrap("WRAP_ERROR", () => okValue.unwrap());
+                expect(wrappedOk.ok).toBe(true);
+
+                const wrappedError = wrap("WRAP_ERROR", () => errorValue.unwrap());
+                expect(wrappedError.ok).toBe(false);
+            });
+        });
+    });
 });
