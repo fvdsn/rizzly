@@ -1,4 +1,6 @@
-Results Types
+🐻 rizzly
 =============
 
-A rust inspired results types library for typescript
+> A rust inspired results types library for typescript
+
+

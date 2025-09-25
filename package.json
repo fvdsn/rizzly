@@ -1,7 +1,7 @@
 {
-    "name": "results-types",
+    "name": "rizzly",
     "version": "1.0.0",
-    "description": "TypeScript types and utilities for results handling",
+    "description": "Results types for typescript, inspired by Rust and Go",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
     "files": [

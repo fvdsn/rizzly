@@ -20,7 +20,13 @@ export class Ok<T> {
     mapError<F extends string>(fn: (error: never) => F): Ok<T> {
         return this;
     }
+    mapCause<U>(fn: (cause: never) => U): Ok<T> {
+        return this;
+    }
     asError<F extends string>(err: F): Ok<T> {
+        return this;
+    }
+    asErrorWithCause<F extends string, U>(err: F, cause: U): Ok<T> {
         return this;
     }
     match<U>(handlers: { ok: (value: T) => U; err: (error: never, cause?: Error) => U }): U {
@@ -56,8 +62,14 @@ export class Err<E extends string, C> {
     mapError<F extends string>(fn: (error: E) => F): Err<F, C> {
         return new Err(fn(this.error), this.cause);
     }
+    mapCause<U>(fn: (cause: C) => U): Err<E, U> {
+        return new Err(this.error, fn(this.cause));
+    }
     asError<F extends string>(err: F): Err<F, C> {
         return new Err(err, this.cause);
+    }
+    asErrorWithCause<F extends string, U>(err: F, cause: U): Err<F, U> {
+        return new Err(err, cause);
     }
     match<U>(handlers: { ok: (value: never) => U; err: (error: E, cause?: C) => U }): U {
         return handlers.err(this.error, this.cause);
