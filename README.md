@@ -16,7 +16,7 @@
 
 ## What is rizzly ?
 
-Rizzly allows you to handle your application errors with results types instead of exceptions. It is similar to
+Rizzly lets you handle your application errors with results types instead of exceptions. It is similar to
 other popular results type libraries like <a href="https://github.com/supermacro/neverthrow">neverthrow</a> and <a href="https://github.com/traverse1984/oxide.ts">oxide.ts</a> but with much better static type inference. Rizzly is tiny and has zero dependencies.
 
 Let's have a look at an example
@@ -60,7 +60,7 @@ import { wrap } from "rizzly"
 let res = wrap(() => JSON.parse(value))
 ```
 
-`wrap()` allows to create results from functions that can throw errors. If the function throws an `Error`, the exception is put as the `.cause`
+`wrap()` lets you create results from functions that can throw errors. If the function throws an `Error`, the exception is put as the `.cause`
 of the result. Otherwise, the returned value is put as the result value.
 
 ### awrap()
@@ -71,4 +71,4 @@ import { awrap } from "rizzly"
 let res = await awrap(fetch("https://perdu.com"))
 ```
 
-`awrap()` allows to create results from functions that return promises. If the promise fails, the result is failed as well and the error is put as the cause. Note that `awrap()` returns a promise of the result.
+`awrap()` lets you create results from functions that return promises. If the promise fails, the result is failed as well and the error is put as the cause. Note that `awrap()` returns a promise of the result.
